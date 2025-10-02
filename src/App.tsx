@@ -15,6 +15,7 @@ import Faturas from './pages/Faturas';
 import NotFound from "./pages/NotFound";
 import ExtratoRanking from "./pages/ExtratoRanking";
 import NetworkTest from "./pages/NetworkTest";
+import WelcomeScreen from "./components/WelcomeScreen";
 
 const queryClient = new QueryClient();
 
@@ -23,19 +24,53 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/producao/analytics" element={<ProducaoAnalyticsSimple />} />
-          <Route path="/funil" element={<Funil />} />
-          <Route path="/propostas" element={<Propostas />} />
-          <Route path="/extrato" element={<Statement />} />
-          <Route path="/extrato-ranking" element={<ExtratoRanking />} />
-          <Route path="/faturas" element={<Faturas />} />
-          <Route path="/network-test" element={<NetworkTest />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        {/* Tela de boas-vindas sem layout */}
+        <Route path="/" element={<WelcomeScreen />} />
+        
+        {/* Páginas com layout principal */}
+        <Route path="/dashboard" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <Dashboard />
+          </Layout>
+        } />
+        <Route path="/producao/analytics" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <ProducaoAnalyticsSimple />
+          </Layout>
+        } />
+        <Route path="/funil" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <Funil />
+          </Layout>
+        } />
+        <Route path="/propostas" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <Propostas />
+          </Layout>
+        } />
+        <Route path="/extrato" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <Statement />
+          </Layout>
+        } />
+        <Route path="/extrato/ranking" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <ExtratoRanking />
+          </Layout>
+        } />
+        <Route path="/faturas" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <Faturas />
+          </Layout>
+        } />
+        <Route path="/network-test" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <NetworkTest />
+          </Layout>
+        } />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </BrowserRouter>
   );
 }
