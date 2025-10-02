@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { SyncProvider, useSync } from "@/providers/sync-provider";
 import { Layout } from "@/components/layout/Layout";
@@ -23,7 +23,7 @@ function AppContent() {
   const { lastSync, isRefreshing } = useSync();
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         {/* Tela de boas-vindas sem layout */}
         <Route path="/" element={<WelcomeScreen />} />
@@ -71,7 +71,7 @@ function AppContent() {
         } />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
