@@ -9,9 +9,9 @@
 [![Shadcn/UI](https://img.shields.io/badge/Shadcn%2FUI-Latest-000000?style=flat&logo=shadcnui)](https://ui.shadcn.com/)
 
 ## 🌟 **Deploy Links**
-- **🔗 Vercel**: [https://data-corban-navigator.vercel.app](https://data-corban-navigator.vercel.app)
-- **🔗 Netlify**: [https://data-corban-navigator.netlify.app](https://data-corban-navigator.netlify.app)  
-- **🔗 GitHub Pages**: [https://acn-1277.github.io/data-corban-navigator](https://acn-1277.github.io/data-corban-navigator)
+- **🔗 GitHub Pages**: [https://acn-1277.github.io/navigatorMock/](https://acn-1277.github.io/navigatorMock/) ✅ **ATIVO**
+- **🔗 Vercel**: [Deploy disponível via import do GitHub](https://vercel.com)
+- **🔗 Netlify**: [Deploy disponível via import do GitHub](https://netlify.com)
 
 ## 💼 **Sobre o Projeto**
 Sistema completo de dashboard executivo desenvolvido em React/TypeScript, com foco em análise de dados financeiros, KPIs e métricas de performance. **Projeto 100% funcional com dados mockados**, demonstrando habilidades em desenvolvimento frontend moderno.
