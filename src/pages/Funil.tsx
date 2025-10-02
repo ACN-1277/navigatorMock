@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useQuery } from "@tanstack/react-query"
-import { getFunilData, getFunilKPIs, getFunilDataByStep, getFunilStatus } from "@/data/postgres"
+import { getFunilDataMock, getFunilKPIsMock, getFunilDataByStepMock, getFunilStatusMock } from "@/data/mock"
 import { useState, useMemo, useRef, useEffect } from "react"
 import * as XLSX from 'xlsx'
 import { useAutoRefresh } from "@/hooks/useAutoRefresh"
@@ -27,23 +27,21 @@ export default function FunilPage() {
   // Buscar status disponíveis
   const { data: statusList = [], refetch: refetchStatus } = useQuery({
     queryKey: ['funil-status'],
-    queryFn: getFunilStatus,
-    staleTime: 0,
-    refetchInterval: 30000,
-    refetchIntervalInBackground: true,
+    queryFn: getFunilStatusMock,
+    staleTime: 300000,
   })
 
-  // Buscar dados do funil (geral ou por etapa)
-  const { data: funilData, isLoading: funilLoading, refetch: refetchFunil } = useQuery({
+  // Buscar dados do funil
+  const { data: funilData, isLoading: funilLoading, refetch: refetchFunil } = useQuery<any[]>({
     queryKey: ['funil-data', selectedProduct, selectedStatus, selectedStep],
     queryFn: () => {
       const produto = selectedProduct === "todos" ? "" : selectedProduct
       const status = selectedStatus === "todos" ? "" : selectedStatus
       
       if (selectedStep !== null) {
-        return getFunilDataByStep(selectedStep, produto, status)
+        return getFunilDataByStepMock(selectedStep, produto, status)
       } else {
-        return getFunilData(produto, status)
+        return getFunilDataMock(produto, status)
       }
     },
     staleTime: 0,
@@ -57,7 +55,7 @@ export default function FunilPage() {
     queryFn: () => {
       const produto = selectedProduct === "todos" ? "" : selectedProduct
       const status = selectedStatus === "todos" ? "" : selectedStatus
-      return getFunilKPIs(produto, status)
+      return getFunilKPIsMock(produto, status)
     },
     staleTime: 0,
     refetchInterval: 30000,
@@ -69,7 +67,6 @@ export default function FunilPage() {
     if (funilData) {
       const now = new Date();
       const timestamp = now.toLocaleTimeString('pt-BR');
-      console.log('[Funil] Dados do funil atualizados:', timestamp);
       updateSync(timestamp);
     }
   }, [funilData, updateSync]);
@@ -136,7 +133,10 @@ export default function FunilPage() {
   })
 
   const isLoading = funilLoading || kpisLoading
-  const totalClients = Number(kpisData?.total_clients) || 0
+  const totalLeads = Number(kpisData?.total_leads) || 0
+  const totalFinalized = Number(kpisData?.total_finalizados) || 0
+  const conversionRate = Number(kpisData?.taxa_conversao) || 0
+  const averageValue = Number(kpisData?.valor_medio) || 0
 
   // Dados do funil com taxa de conversão
   const funnelData = useMemo(() => {
@@ -154,11 +154,11 @@ export default function FunilPage() {
     
     return steps.map((step, index) => ({
       ...step,
-      percentage: totalClients > 0 ? ((step.value / totalClients) * 100).toFixed(1) : '0',
+      percentage: totalLeads > 0 ? ((step.value / totalLeads) * 100).toFixed(1) : '0',
       conversionRate: index > 0 && steps[index-1].value > 0 ? 
         ((step.value / steps[index-1].value) * 100).toFixed(1) : '100'
     }))
-  }, [kpisData, totalClients])
+  }, [kpisData, totalLeads])
 
   // Função para lidar com clique nas etapas
   const handleStepClick = (stepId: number) => {
@@ -290,7 +290,7 @@ export default function FunilPage() {
                 <p className="text-3xl font-bold tracking-tight text-[#ac7b39]" style={{
                   textShadow: '0 1px 3px rgba(0, 0, 0, 0.5), 0 0 10px rgba(172, 123, 57, 0.2)'
                 }}>
-                  {totalClients.toLocaleString("pt-BR")}
+                  {totalLeads.toLocaleString("pt-BR")}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -339,7 +339,7 @@ export default function FunilPage() {
                   {(() => {
                     // Calcular taxa de conversão: Finalizados / Total de Clientes
                     const finalizados = funilData ? funilData.filter((item: any) => item.Status === 'FINALIZADO').length : 0;
-                    const taxa = totalClients > 0 ? ((finalizados / totalClients) * 100).toFixed(1) : "0";
+                    const taxa = totalLeads > 0 ? ((finalizados / totalLeads) * 100).toFixed(1) : "0";
                     return taxa + "%";
                   })()}
                 </p>
@@ -491,9 +491,13 @@ export default function FunilPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {item.produto_nome}
-                        </Badge>
+                        {item.produto_nome && item.produto_nome.trim() !== '' ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {item.produto_nome}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Produto não informado</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

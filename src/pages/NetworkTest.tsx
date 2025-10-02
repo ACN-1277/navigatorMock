@@ -1,40 +1,33 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { API_URLS, getApiEndpoint } from '@/lib/api-config';
+import { getApiEndpoint, logApiCall } from '@/lib/api-config';
 
 export default function NetworkTest() {
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
   const currentPort = typeof window !== 'undefined' ? window.location.port : 'unknown';
   const currentProtocol = typeof window !== 'undefined' ? window.location.protocol : 'unknown';
   
-  const testEndpoints = [
-    { name: 'SQL Server - Produção Analytics', url: getApiEndpoint('SQLSERVER', '/api/producao/status-analysis?startDate=2025-01-01&endDate=2025-09-22') },
-    { name: 'PostgreSQL - Funil Data', url: getApiEndpoint('POSTGRES', '/api/funil/data') },
-    { name: 'PostgreSQL - Propostas', url: getApiEndpoint('POSTGRES', '/api/propostas/data') },
-    { name: 'Extrato - Statement', url: getApiEndpoint('EXTRATO', '/api/statement') },
-    { name: 'Extrato - Faturas', url: getApiEndpoint('EXTRATO', '/api/faturas') },
+  const mockEndpoints = [
+    { name: 'Dashboard Analytics', url: getApiEndpoint('MOCK', '/api/dashboard/analytics'), status: 'MOCK - OK' },
+    { name: 'Produção Analytics', url: getApiEndpoint('MOCK', '/api/producao/status-analysis'), status: 'MOCK - OK' },
+    { name: 'Funil Data', url: getApiEndpoint('MOCK', '/api/funil/data'), status: 'MOCK - OK' },
+    { name: 'Propostas', url: getApiEndpoint('MOCK', '/api/propostas/data'), status: 'MOCK - OK' },
+    { name: 'Statement/Extrato', url: getApiEndpoint('MOCK', '/api/statement'), status: 'MOCK - OK' },
+    { name: 'Faturas', url: getApiEndpoint('MOCK', '/api/faturas'), status: 'MOCK - OK' },
+    { name: 'Extrato Ranking', url: getApiEndpoint('MOCK', '/api/extrato-ranking'), status: 'MOCK - OK' },
   ];
 
-  const testApi = async (url: string) => {
-    try {
-      const response = await fetch(url);
-      return {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText
-      };
-    } catch (error) {
-      return {
-        status: 'ERROR',
-        ok: false,
-        statusText: error.message
-      };
-    }
+  const testMockEndpoint = (url: string, name: string) => {
+    logApiCall(url, 'REQUEST');
+    setTimeout(() => {
+      logApiCall(url, 'SUCCESS');
+      alert(`✅ Mock endpoint testado com sucesso!\n\nEndpoint: ${name}\nURL: ${url}\n\nStatus: SIMULADO - OK\nTempo de resposta: ~500ms\n\nTodos os dados são fornecidos por sistema mock interno.`);
+    }, 100);
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Teste de Conectividade de Rede</h1>
+      <h1 className="text-3xl font-bold">Sistema de Dados Mock - Diagnóstico</h1>
       
       <Card>
         <CardHeader>
@@ -60,35 +53,49 @@ export default function NetworkTest() {
 
       <Card>
         <CardHeader>
-          <CardTitle>URLs das APIs Configuradas</CardTitle>
+          <CardTitle>Status do Sistema Mock</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div><strong>SQL Server:</strong> {API_URLS.SQLSERVER}</div>
-            <div><strong>PostgreSQL:</strong> {API_URLS.POSTGRES}</div>
-            <div><strong>Extrato:</strong> {API_URLS.EXTRATO}</div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <strong>Sistema Mock:</strong> <span className="text-green-600">Ativo e Funcional</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <strong>Dados Simulados:</strong> <span className="text-green-600">Carregados</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <strong>Dependências Externas:</strong> <span className="text-green-600">Removidas</span>
+            </div>
+            <div className="text-sm text-muted-foreground mt-4">
+              ℹ️ Este sistema foi convertido para funcionar completamente com dados mockados, 
+              não requerendo conexões com banco de dados externos.
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Teste de Endpoints</CardTitle>
+          <CardTitle>Teste de Endpoints Mock</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {testEndpoints.map((endpoint, index) => (
+            {mockEndpoints.map((endpoint, index) => (
               <div key={index} className="border p-3 rounded">
                 <div className="font-medium">{endpoint.name}</div>
-                <div className="text-sm text-gray-600 mb-2">{endpoint.url}</div>
+                <div className="text-sm text-muted-foreground mb-2">{endpoint.url}</div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-sm text-green-600">{endpoint.status}</span>
+                </div>
                 <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
-                  onClick={async () => {
-                    const result = await testApi(endpoint.url);
-                    alert(`Status: ${result.status} - ${result.statusText}`);
-                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                  onClick={() => testMockEndpoint(endpoint.url, endpoint.name)}
                 >
-                  Testar Conexão
+                  Testar Mock
                 </button>
               </div>
             ))}
@@ -98,13 +105,19 @@ export default function NetworkTest() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Variáveis de Ambiente</CardTitle>
+          <CardTitle>Arquivos Mock Disponíveis</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div><strong>VITE_API_SQLSERVER_URL:</strong> {import.meta.env.VITE_API_SQLSERVER_URL || 'Não definida'}</div>
-            <div><strong>VITE_API_POSTGRES_URL:</strong> {import.meta.env.VITE_API_POSTGRES_URL || 'Não definida'}</div>
-            <div><strong>VITE_EXTRATO_API_URL:</strong> {import.meta.env.VITE_EXTRATO_API_URL || 'Não definida'}</div>
+            <div><strong>Dashboard:</strong> /src/data/mock/mockDashboard.ts</div>
+            <div><strong>Propostas:</strong> /src/data/mock/mockPropostas.ts</div>
+            <div><strong>Statement:</strong> /src/data/mock/mockStatement.ts</div>
+            <div><strong>Extrato Ranking:</strong> /src/data/mock/mockExtratoRanking.ts</div>
+            <div><strong>Faturas:</strong> /src/data/mock/mockFaturas.ts</div>
+            <div><strong>Produção Analytics:</strong> /src/data/mock/mockProducaoAnalytics.ts</div>
+            <div className="text-sm text-muted-foreground mt-4">
+              📁 Todos os dados são fornecidos por estes arquivos mock locais.
+            </div>
           </div>
         </CardContent>
       </Card>

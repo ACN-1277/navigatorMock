@@ -64,12 +64,7 @@ interface DeltaStore {
   
   // Feature Flags
   flags: {
-    leadTimeDDB: boolean;
-    coortes: boolean;
-    previsao: boolean;
-    rbac: boolean;
     commandPalette: boolean;
-    realTimeSync: boolean;
     advancedFilters: boolean;
     exportPremium: boolean;
   };
@@ -173,12 +168,7 @@ export const useDeltaStore = create<DeltaStore>()(
       
       // Flags
       flags: {
-        leadTimeDDB: false,
-        coortes: false,
-        previsao: false,
-        rbac: false,
         commandPalette: true,
-        realTimeSync: false,
         advancedFilters: true,
         exportPremium: true,
       },

@@ -11,7 +11,8 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { useAutoRefresh } from "@/hooks/useAutoRefresh"
 import { useSync } from "@/providers/sync-provider"
-import { getApiEndpoint, logApiCall } from "@/lib/api-config"
+import { logApiCall } from "@/lib/api-config"
+import { mockProducaoAnalyticsData, mockApiDelay, filterMockData } from "@/data/mock/mockProducaoAnalytics"
 
 export default function ProducaoAnalytics() {
   const { updateSync, setRefreshing } = useSync()
@@ -97,34 +98,31 @@ export default function ProducaoAnalytics() {
     };
   }, []);
 
-  // Função para buscar dados
+  // Função para buscar dados (usando mock data)
   const fetchData = async (customStartDate?: string, customEndDate?: string) => {
     setLoading(true)
     setRefreshing(true)
     
-    const params = new URLSearchParams()
-    params.append('startDate', customStartDate || startDate)
-    params.append('endDate', customEndDate || endDate)
-    
-    // Adicionar filtros de banco e equipe
-    if (selectedBanco) params.append('banco', selectedBanco)
-    if (selectedEquipe) params.append('equipe', selectedEquipe)
-    
-    const url = getApiEndpoint('SQLSERVER', `/api/producao/status-analysis?${params.toString()}`)
-    console.log('🔍 Buscando análise:', url)
-    logApiCall(url, 'REQUEST')
+    const mockUrl = `mock://sqlserver/api/producao/status-analysis`
+    console.log('🔍 Buscando análise (MOCK):', mockUrl)
+    logApiCall(mockUrl, 'REQUEST')
     console.log('🏦 Filtros ativos - Banco:', selectedBanco, 'Equipe:', selectedEquipe)
     
     try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
-      }
+      // Simular delay de API
+      await mockApiDelay(800)
       
-      const result = await response.json()
-      setData(result)
-      console.log('Dados recebidos:', result)
-      logApiCall(url, 'SUCCESS')
+      // Aplicar filtros aos dados mock
+      const filteredData = filterMockData(mockProducaoAnalyticsData, {
+        banco: selectedBanco,
+        equipe: selectedEquipe,
+        startDate: customStartDate || startDate,
+        endDate: customEndDate || endDate
+      })
+      
+      setData(filteredData)
+      console.log('Dados mock recebidos:', filteredData.statusAnalysis)
+      logApiCall(mockUrl, 'SUCCESS')
       
       // Atualizar indicador de sincronização
       const now = new Date()
@@ -133,13 +131,13 @@ export default function ProducaoAnalytics() {
         minute: '2-digit',
         second: '2-digit'
       })
-      console.log('[ProducaoAnalytics] Dados atualizados:', timestamp);
+      console.log('[ProducaoAnalytics] Dados atualizados (MOCK):', timestamp);
       updateSync(timestamp)
       
       return { hasNewData: true } // Sempre retorna hasNewData: true
     } catch (error) {
       console.error('Erro:', error)
-      logApiCall(url, 'ERROR')
+      logApiCall(mockUrl, 'ERROR')
       alert('Erro ao carregar dados: ' + error.message)
       return { hasNewData: false }
     } finally {
@@ -191,25 +189,21 @@ export default function ProducaoAnalytics() {
   // Removido o useEffect automático que recarregava dados quando filtros mudavam
   // Agora os dados só são recarregados quando o usuário clica no botão "Filtrar Dados"
 
-  // Função para carregar dados dos filtros (bancos e equipes)
+  // Função para carregar dados dos filtros (bancos e equipes) - usando mock data
   const loadFiltersData = async () => {
     setLoadingFilters(true)
     try {
-      // Carregar bancos
-      const bancosUrl = getApiEndpoint('SQLSERVER', '/api/producao/bancos')
-      const bancosResponse = await fetch(bancosUrl)
-      if (bancosResponse.ok) {
-        const bancosData = await bancosResponse.json()
-        setBancos(bancosData)
-      }
-
-      // Carregar equipes
-      const equipesUrl = getApiEndpoint('SQLSERVER', '/api/producao/equipes')
-      const equipesResponse = await fetch(equipesUrl)
-      if (equipesResponse.ok) {
-        const equipesData = await equipesResponse.json()
-        setEquipes(equipesData)
-      }
+      // Simular delay
+      await mockApiDelay(300)
+      
+      // Carregar dados mock
+      setBancos(mockProducaoAnalyticsData.bancos)
+      setEquipes(mockProducaoAnalyticsData.equipes)
+      
+      console.log('Filtros mock carregados:', {
+        bancos: mockProducaoAnalyticsData.bancos.length,
+        equipes: mockProducaoAnalyticsData.equipes.length
+      })
     } catch (error) {
       console.error('Erro ao carregar filtros:', error)
     } finally {
@@ -230,34 +224,27 @@ export default function ProducaoAnalytics() {
     }
   }
 
-  // Função para buscar detalhes dos contratos por status
+  // Função para buscar detalhes dos contratos por status (usando mock data)
   const fetchContractDetails = async (status) => {
     setLoadingDetails(true)
     
-    const params = new URLSearchParams()
-    params.append('startDate', startDate)
-    params.append('endDate', endDate)
-    if (status) params.append('status', status)
-    if (selectedBanco) params.append('banco', selectedBanco)
-    if (selectedEquipe) params.append('equipe', selectedEquipe)
-    
-    const url = getApiEndpoint('SQLSERVER', `/api/producao/status-details?${params.toString()}`)
-    console.log('🔍 Buscando detalhes:', url)
-    logApiCall(url, 'REQUEST')
+    const mockUrl = `mock://sqlserver/api/producao/status-details?status=${status}`
+    console.log('🔍 Buscando detalhes (MOCK):', mockUrl)
+    logApiCall(mockUrl, 'REQUEST')
     
     try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
-      }
+      // Simular delay
+      await mockApiDelay(600)
       
-      const result = await response.json()
+      // Buscar dados mock para o status específico
+      const result = mockProducaoAnalyticsData.contractDetails[status] || []
+      
       setContractDetails(result)
-      console.log('Detalhes recebidos:', result)
-      logApiCall(url, 'SUCCESS')
+      console.log('Detalhes mock recebidos:', result)
+      logApiCall(mockUrl, 'SUCCESS')
     } catch (error) {
       console.error('Erro ao buscar detalhes:', error)
-      logApiCall(url, 'ERROR')
+      logApiCall(mockUrl, 'ERROR')
       setContractDetails([]) // Definir array vazio em caso de erro
       alert('Erro ao carregar detalhes: ' + error.message)
     } finally {
@@ -265,34 +252,27 @@ export default function ProducaoAnalytics() {
     }
   }
 
-  // Função para buscar todos os contratos
+  // Função para buscar todos os contratos (usando mock data)
   const fetchAllContracts = async () => {
     setLoadingDetails(true)
     
-    const params = new URLSearchParams()
-    params.append('startDate', startDate)
-    params.append('endDate', endDate)
-    params.append('limit', '500')
-    if (selectedBanco) params.append('banco', selectedBanco)
-    if (selectedEquipe) params.append('equipe', selectedEquipe)
-    
-    const url = getApiEndpoint('SQLSERVER', `/api/producao/status-details?${params.toString()}`)
-    console.log('🔍 Buscando todos os contratos:', url)
-    logApiCall(url, 'REQUEST')
+    const mockUrl = `mock://sqlserver/api/producao/status-details?all=true`
+    console.log('🔍 Buscando todos os contratos (MOCK):', mockUrl)
+    logApiCall(mockUrl, 'REQUEST')
     
     try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
-      }
+      // Simular delay
+      await mockApiDelay(800)
       
-      const result = await response.json()
-      setContractDetails(result)
-      console.log('Todos os contratos recebidos:', result)
-      logApiCall(url, 'SUCCESS')
+      // Combinar todos os contratos de todos os status
+      const allContracts = Object.values(mockProducaoAnalyticsData.contractDetails).flat()
+      
+      setContractDetails(allContracts)
+      console.log('Todos os contratos mock recebidos:', allContracts.length)
+      logApiCall(mockUrl, 'SUCCESS')
     } catch (error) {
       console.error('Erro ao buscar todos os contratos:', error)
-      logApiCall(url, 'ERROR')
+      logApiCall(mockUrl, 'ERROR')
       setContractDetails([])
       alert('Erro ao carregar contratos: ' + error.message)
     } finally {

@@ -148,7 +148,7 @@ export function Sidebar() {
             <span className="text-primary-foreground font-bold text-sm">Δ</span>
           </div>
           <div>
-            <h2 className="font-semibold text-sidebar-foreground">Delta Global Center</h2>
+            <h2 className="font-semibold text-sidebar-foreground">Enterprise Dashboard</h2>
             <p className="text-xs text-muted-foreground">v2.1.0</p>
           </div>
         </div>
@@ -156,8 +156,8 @@ export function Sidebar() {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-4">
-        <NavSection title="Treynor" items={productionNavItems} />
-        <NavSection title="Delta Global Bank" items={analysisNavItems} />
+        <NavSection title="Corban" items={productionNavItems} />
+        <NavSection title="Bank" items={analysisNavItems} />
       </div>
 
 

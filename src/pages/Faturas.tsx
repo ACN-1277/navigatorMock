@@ -8,93 +8,197 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
-import { CreditCard, AlertTriangle, CheckCircle, Clock, DollarSign, Users, Calendar, Search, Filter, Download, TrendingUp, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { getFaturasData, FaturaData, FaturasSummary } from '@/data/faturasApi';
+import { CreditCard, AlertTriangle, CheckCircle, Clock, DollarSign, Users, Calendar, Search, Filter, Download, TrendingUp, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { useSync } from '@/providers/sync-provider';
+import { getFaturasDataMock, FaturaDataMock, FaturasSummaryMock } from '@/data/mock';
 import * as XLSX from 'xlsx';
 
+// Interfaces para dados adaptados
+interface FaturaData {
+  id: number;
+  valor_fatura: number;
+  fechamento: string;
+  vencimento: string;
+  status: string;
+  personal_name: string;
+  personal_document: string;
+  produtos: string;
+  email: string;
+  statement_id: string;
+}
+
+interface FaturasSummary {
+  totalFaturas: number;
+  valorTotal: number;
+  valorMedio: number;
+  clientesUnicos: number;
+  emAberto: number;
+  vencidas: number;
+  pagas: number;
+  valorEmAberto: number;
+  valorVencido: number;
+  valorPago: number;
+  faturasVencidas: number;
+  faturasAVencer: number;
+  valorMedioFatura: number;
+}
+
+// Função para adaptar dados mockados
+const adaptFaturasData = (mockData: FaturaDataMock[]): FaturaData[] => {
+  return mockData.map((item, index) => ({
+    id: item.id,
+    valor_fatura: item["Valor Fatura"],
+    fechamento: item.Fechamento,
+    vencimento: item.Vencimento,
+    status: item.Status,
+    personal_name: item.Cliente,
+    personal_document: item.Documento,
+    produtos: item.Produtos,
+    email: `${item.Cliente.toLowerCase().replace(/\s+/g, '.')}@email.com`,
+    statement_id: `FAT-${String(item.id).padStart(6, '0')}`
+  }));
+};
+
+const adaptFaturasSummary = (mockSummary: FaturasSummaryMock, data: FaturaData[]): FaturasSummary => {
+  const statusCounts = data.reduce((acc, fatura) => {
+    acc[fatura.status] = (acc[fatura.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const statusValues = data.reduce((acc, fatura) => {
+    if (!acc[fatura.status]) acc[fatura.status] = 0;
+    acc[fatura.status] += fatura.valor_fatura;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return {
+    totalFaturas: mockSummary.totalFaturas,
+    valorTotal: mockSummary.valorTotal,
+    valorMedio: mockSummary.valorMedioFatura,
+    clientesUnicos: data.length, // Simplificado
+    emAberto: statusCounts['PENDENTE'] || 0,
+    vencidas: statusCounts['VENCIDO'] || 0,
+    pagas: statusCounts['PAGO'] || 0,
+    valorEmAberto: statusValues['PENDENTE'] || 0,
+    valorVencido: statusValues['VENCIDO'] || 0,
+    valorPago: statusValues['PAGO'] || 0,
+    faturasVencidas: mockSummary.faturasVencidas,
+    faturasAVencer: mockSummary.faturasAVencer,
+    valorMedioFatura: mockSummary.valorMedioFatura
+  };
+};
+
 const Faturas = () => {
-  const { updateSync, setRefreshing } = useSync()
+  const { updateSync, setRefreshing } = useSync();
   
-  // Estados para filtros (inputs não aplicados)
-  const [inputPersonalDocument, setInputPersonalDocument] = useState('');
-  const [inputStatus, setInputStatus] = useState('todos');
-  const [inputSearchTerm, setInputSearchTerm] = useState('');
+  // Estados para filtros temporários (não aplicados ainda)
+  const [tempPersonalDocument, setTempPersonalDocument] = useState('');
+  const [tempStatus, setTempStatus] = useState('todos');
+  const [tempSearchTerm, setTempSearchTerm] = useState('');
   
-  // Estados para filtros aplicados
+  // Estados para filtros aplicados (usados nas queries)
   const [personalDocument, setPersonalDocument] = useState('');
   const [status, setStatus] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Estados para ordenação da tabela
-  const [sortBy, setSortBy] = useState('fechamento'); // 'balance' ou 'fechamento'
-  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' ou 'desc'
+  const [sortBy, setSortBy] = useState('fechamento');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Função para aplicar os filtros
-  const handleApplyFilters = () => {
-    setPersonalDocument(inputPersonalDocument);
-    setStatus(inputStatus);
-    setSearchTerm(inputSearchTerm);
+  // Buscar dados das faturas
+  const { data: faturasResponse, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['faturas', personalDocument, status, searchTerm],
+    queryFn: async () => {
+      console.log('[FATURAS] Fazendo requisição para mock com:', {
+        personalDocument: personalDocument || undefined,
+        status: status === 'todos' ? undefined : status,
+        searchTerm: searchTerm || undefined
+      });
+      const mockResponse = await getFaturasDataMock(
+        undefined, // startDate
+        undefined, // endDate  
+        searchTerm || undefined
+      );
+      console.log('[FATURAS] Dados retornados:', mockResponse.data.length, 'faturas');
+      
+      const adaptedData = adaptFaturasData(mockResponse.data);
+      
+      // Filtrar por status se não for 'todos'
+      let filteredData = adaptedData;
+      if (status !== 'todos') {
+        filteredData = adaptedData.filter(fatura => fatura.status === status);
+      }
+      
+      // Filtrar por documento se fornecido
+      if (personalDocument && personalDocument.trim()) {
+        filteredData = filteredData.filter(fatura => 
+          fatura.personal_document.includes(personalDocument.trim())
+        );
+      }
+      
+      return {
+        data: filteredData,
+        summary: adaptFaturasSummary(mockResponse.summary, filteredData)
+      };
+    },
+    staleTime: 0,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+  });
+
+  // Aplicar filtros
+  const applyFilters = () => {
+    setPersonalDocument(tempPersonalDocument);
+    setStatus(tempStatus);
+    setSearchTerm(tempSearchTerm);
   };
 
-  // Função para limpar filtros
-  const limparFiltros = () => {
-    setInputPersonalDocument('');
-    setInputStatus('todos');
-    setInputSearchTerm('');
-    setPersonalDocument('');
-    setStatus('todos');
-    setSearchTerm('');
-  };
+  // Verificar se há filtros aplicados
+  const hasActiveFilters = personalDocument || status !== 'todos' || searchTerm;
 
-  // Função para aplicar filtros ao pressionar Enter
+  // Verificar se há filtros pendentes para aplicar
+  const hasPendingFilters = tempPersonalDocument !== personalDocument || 
+                           tempStatus !== status || 
+                           tempSearchTerm !== searchTerm;
+
+  // Aplicar filtros ao pressionar Enter
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleApplyFilters();
+      applyFilters();
     }
   };
 
-  // Função para ordenar faturas
-  const sortFaturas = (faturas: FaturaData[]) => {
-    if (!faturas || faturas.length === 0) return faturas;
+  // Limpar filtros
+  const clearFilters = () => {
+    // Limpar filtros temporários
+    setTempPersonalDocument('');
+    setTempStatus('todos');
+    setTempSearchTerm('');
     
-    return [...faturas].sort((a, b) => {
-      let aValue, bValue;
-      
-      if (sortBy === 'balance') {
-        aValue = Number(a.balance || 0);
-        bValue = Number(b.balance || 0);
-      } else if (sortBy === 'fechamento') {
-        aValue = new Date(a.fechamento || '1970-01-01');
-        bValue = new Date(b.fechamento || '1970-01-01');
-      } else if (sortBy === 'vencimento') {
-        aValue = new Date(a.vencimento || '1970-01-01');
-        bValue = new Date(b.vencimento || '1970-01-01');
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
+    // Limpar filtros aplicados
+    setPersonalDocument('');
+    setStatus('todos');
+    setSearchTerm('');
+    
+    setSortBy('fechamento');
+    setSortOrder('desc');
   };
 
-  // Query para buscar dados das faturas
-  const { data: faturasResponse, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['faturas', personalDocument, status],
-    queryFn: () => getFaturasData(personalDocument, status),
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    refetchIntervalInBackground: true, // Continua atualizando mesmo quando a aba não está ativa
-    staleTime: 0, // Considera os dados sempre obsoletos para garantir atualizações
-  });
+  // Sincronizar filtros temporários com filtros aplicados ao inicializar
+  useEffect(() => {
+    setTempPersonalDocument(personalDocument);
+    setTempStatus(status);
+    setTempSearchTerm(searchTerm);
+  }, []); // Só na inicialização
 
-  // Atualizar sync quando dados chegarem
+  // Efeito para sincronização
   useEffect(() => {
     if (faturasResponse) {
-      const now = new Date();
-      const timestamp = now.toLocaleTimeString('pt-BR');
-      console.log('[FATURAS] Atualizando sync para:', timestamp);
+      const timestamp = new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
       updateSync(timestamp);
     }
   }, [faturasResponse, updateSync]);
@@ -104,6 +208,7 @@ const Faturas = () => {
     setRefreshing(isFetching);
   }, [isFetching, setRefreshing]);
 
+  // Extrair dados
   const faturasData = faturasResponse?.data || [];
   const faturasSummary = faturasResponse?.summary || {
     totalFaturas: 0,
@@ -118,157 +223,236 @@ const Faturas = () => {
     valorPago: 0,
   };
 
+  // Função para ordenar faturas
+  const sortFaturas = (data: FaturaData[]) => {
+    return [...data].sort((a, b) => {
+      let aValue: any = a[sortBy as keyof FaturaData];
+      let bValue: any = b[sortBy as keyof FaturaData];
+
+      if (sortBy === 'fechamento' || sortBy === 'vencimento') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      }
+
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
   // Filtrar e ordenar dados localmente
   const filteredData = useMemo(() => {
-    const filtered = faturasData.filter(item => {
-      const matchesSearch = item.personal_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.personal_document.includes(searchTerm) ||
-        item.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.statement_id.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesSearch;
-    });
-    
-    return sortFaturas(filtered);
-  }, [faturasData, searchTerm, sortBy, sortOrder]);
+    return sortFaturas(faturasData);
+  }, [faturasData, sortBy, sortOrder]);
+
+  // Função para lidar com ordenação
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  };
+
+  // Função para renderizar ícone de ordenação
+  const renderSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+  };
 
   // Preparar dados para gráfico de status
   const statusChartData = useMemo(() => {
-    const statusCount = {
-      'Em Aberto': faturasSummary.emAberto,
-      'Vencidas': faturasSummary.vencidas,
-      'Pagas': faturasSummary.pagas,
+    const statusConfig = {
+      'PENDENTE': { label: 'Em Aberto', color: '#eab308', count: faturasSummary.emAberto, valor: faturasSummary.valorEmAberto },
+      'VENCIDO': { label: 'Vencidas', color: '#ef4444', count: faturasSummary.vencidas, valor: faturasSummary.valorVencido },
+      'PAGO': { label: 'Pagas', color: '#22c55e', count: faturasSummary.pagas, valor: faturasSummary.valorPago },
     };
 
-    return Object.entries(statusCount).map(([status, count]) => ({
-      status,
-      count,
-      valor: status === 'Em Aberto' ? faturasSummary.valorEmAberto :
-             status === 'Vencidas' ? faturasSummary.valorVencido :
-             faturasSummary.valorPago
-    }));
+    return Object.entries(statusConfig).map(([key, config]) => ({
+      status: config.label,
+      count: config.count,
+      valor: config.valor,
+      color: config.color
+    })).filter(item => item.count > 0);
   }, [faturasSummary]);
 
-  // Cores para o gráfico de status
-  const COLORS = {
-    'Em Aberto': '#eab308', // amarelo mais visível
-    'Vencidas': '#dc2626',  // vermelho mais intenso
-    'Pagas': '#16a34a',     // verde mais intenso
+  // Refetch all data
+  const handleRefresh = () => {
+    setRefreshing(true);
+    refetch().finally(() => {
+      setRefreshing(false);
+      const now = new Date();
+      updateSync(now.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }));
+    });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString || dateString.trim() === '') {
-      return '-';
-    }
-    
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return '-';
-    }
-    
-    return date.toLocaleDateString('pt-BR');
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'em aberto':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'vencida':
-      case 'vencidas':
-        return 'bg-red-100 text-red-800';
-      case 'paga':
-      case 'pagas':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
+  // Função de exportação
   const handleExport = () => {
     if (!filteredData || filteredData.length === 0) {
       alert('Não há dados para exportar');
       return;
     }
 
-    // Preparar dados para o Excel
-    const excelData = filteredData.map((fatura, index) => ({
-      '#': index + 1,
-      'Nome': fatura.personal_name,
-      'Documento': fatura.personal_document,
-      'Email': fatura.email,
+    const exportData = filteredData.map(fatura => ({
       'ID Fatura': fatura.statement_id,
-      'Tipo': fatura.kind,
-      'Valor Fatura': fatura.balance,
-      'Fechamento': formatDate(fatura.fechamento),
-      'Vencimento': formatDate(fatura.vencimento),
-      'Status': fatura.status
+      Cliente: fatura.personal_name,
+      'CPF/CNPJ': fatura.personal_document,
+      'Valor Fatura': fatura.valor_fatura.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      Fechamento: new Date(fatura.fechamento).toLocaleDateString('pt-BR'),
+      Vencimento: new Date(fatura.vencimento).toLocaleDateString('pt-BR'),
+      Status: fatura.status,
+      Produtos: fatura.produtos,
+      Email: fatura.email
     }));
 
-    // Criar worksheet
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Faturas');
     
-    // Criar workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Faturas');
-    
-    // Gerar nome do arquivo com timestamp
-    const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `faturas_${timestamp}.xlsx`;
-    
-    // Salvar arquivo
-    XLSX.writeFile(workbook, fileName);
-    
-    console.log('Faturas exportadas para:', fileName);
+    const fileName = `faturas_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-lg">Carregando faturas...</div>
-        </div>
-      </div>
-    );
-  }
+  // Função para obter cor do badge de status
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'PAGO':
+        return 'default';
+      case 'PENDENTE':
+        return 'secondary';
+      case 'VENCIDO':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
 
-  if (error) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-lg text-red-600">Erro ao carregar faturas</div>
-        </div>
-      </div>
-    );
-  }
+  // Função para obter ícone do status
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'PAGO':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'PENDENTE':
+        return <Clock className="h-4 w-4" />;
+      case 'VENCIDO':
+        return <AlertTriangle className="h-4 w-4" />;
+      default:
+        return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  // Formatação de data para exibição
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('pt-BR');
+    } catch (error) {
+      return dateString;
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <CreditCard className="h-8 w-8 text-blue-600" />
-          Faturas de Cartão de Crédito
-          {isFetching && (
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          )}
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Faturas</h1>
+          <p className="text-muted-foreground">
+            Gerencie e acompanhe as faturas dos clientes
+          </p>
+        </div>
+        
         <div className="flex items-center gap-2">
-
+          {isFetching && (
+            <div className="text-sm text-muted-foreground">
+              Atualizando...
+            </div>
+          )}
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
         </div>
       </div>
-      
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Faturas</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{faturasSummary.totalFaturas}</div>
+            <p className="text-xs text-muted-foreground">
+              Valor total: {faturasSummary.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Em Aberto</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{faturasSummary.emAberto}</div>
+            <p className="text-xs text-muted-foreground">
+              {faturasSummary.valorEmAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Vencidas</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{faturasSummary.vencidas}</div>
+            <p className="text-xs text-muted-foreground">
+              {faturasSummary.valorVencido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pagas</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{faturasSummary.pagas}</div>
+            <p className="text-xs text-muted-foreground">
+              {faturasSummary.valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filtros */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
             Filtros
+            {hasActiveFilters && (
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                Ativos
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -277,219 +461,192 @@ const Faturas = () => {
               <Label htmlFor="documento">CPF/CNPJ</Label>
               <Input
                 id="documento"
-                placeholder="Digite o documento..."
-                value={inputPersonalDocument}
-                onChange={(e) => setInputPersonalDocument(e.target.value)}
+                placeholder="000.000.000-00"
+                value={tempPersonalDocument}
+                onChange={(e) => setTempPersonalDocument(e.target.value)}
                 onKeyPress={handleKeyPress}
               />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={inputStatus} onValueChange={setInputStatus}>
-                <SelectTrigger>
+              <Select value={tempStatus} onValueChange={setTempStatus}>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os Status</SelectItem>
-                  <SelectItem value="Em Aberto">Em Aberto</SelectItem>
-                  <SelectItem value="Vencida">Vencidas</SelectItem>
-                  <SelectItem value="Paga">Pagas</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="PENDENTE">Em Aberto</SelectItem>
+                  <SelectItem value="VENCIDO">Vencidas</SelectItem>
+                  <SelectItem value="PAGO">Pagas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="busca">Busca Geral</Label>
+              <Label htmlFor="busca">Buscar</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="busca"
-                  placeholder="Buscar por nome, email..."
-                  className="pl-10"
-                  value={inputSearchTerm}
-                  onChange={(e) => setInputSearchTerm(e.target.value)}
+                  placeholder="Cliente, produto, ID..."
+                  value={tempSearchTerm}
+                  onChange={(e) => setTempSearchTerm(e.target.value)}
                   onKeyPress={handleKeyPress}
+                  className="pl-8"
                 />
               </div>
             </div>
           </div>
           
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              onClick={handleApplyFilters}
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+            <Button 
+              onClick={applyFilters} 
               variant="default"
-              className="flex items-center gap-2"
+              className={hasPendingFilters ? "bg-blue-600 hover:bg-blue-700" : ""}
             >
-              <Search className="h-4 w-4" />
-              Pesquisar
+              <Filter className="h-4 w-4 mr-2" />
+              {hasPendingFilters ? "Aplicar Filtros" : "Filtrar"}
+              {hasPendingFilters && <span className="ml-1 text-xs">●</span>}
             </Button>
-            {(personalDocument || status !== 'todos' || searchTerm) && (
-              <Button
-                onClick={limparFiltros}
-                variant="outline"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                Limpar Filtros
-              </Button>
+            <Button 
+              onClick={clearFilters} 
+              variant="outline"
+              disabled={!hasActiveFilters && !hasPendingFilters}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Limpar
+            </Button>
+            {hasActiveFilters && (
+              <span className="text-sm text-muted-foreground bg-blue-50 px-2 py-1 rounded">
+                Filtros ativos
+              </span>
             )}
+            <div className="flex-1"></div>
+            <Button onClick={handleExport} variant="outline" disabled={!filteredData || filteredData.length === 0}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Faturas</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{faturasSummary.totalFaturas.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {faturasSummary.clientesUnicos} clientes únicos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(faturasSummary.valorTotal)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Média: {formatCurrency(faturasSummary.valorMedio)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Em Aberto</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {formatCurrency(faturasSummary.valorEmAberto)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {faturasSummary.emAberto} faturas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vencidas</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(faturasSummary.valorVencido)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {faturasSummary.vencidas} faturas
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico de Barras - Status */}
-        <Card>
+        {/* Gráfico de Status das Faturas */}
+        <Card className="h-full">
           <CardHeader>
-            <CardTitle>Faturas por Status</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart className="h-5 w-5" />
+              Status das Faturas
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-96">
+          <CardContent className="h-[400px]">
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">Carregando gráfico...</p>
+              </div>
+            ) : statusChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis 
                     dataKey="status" 
-                    stroke="hsl(var(--muted-foreground))" 
                     fontSize={12}
+                    tick={{ fill: '#475569' }}
                   />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis 
+                    fontSize={12}
+                    tick={{ fill: '#475569' }}
+                  />
                   <Tooltip 
-                    formatter={(value, name) => {
-                      // O gráfico de barras só mostra quantidade
-                      return [value, 'Quantidade de Faturas'];
-                    }}
-                    labelFormatter={(label) => `Status: ${label}`}
+                    formatter={(value, name) => [value, name === 'count' ? 'Quantidade' : 'Valor']}
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
+                      backgroundColor: '#1e293b',
+                      border: 'none',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+                      color: '#ffffff'
                     }}
                   />
-                  <Legend />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#8884d8" 
-                    name="Quantidade"
-                    radius={[4, 4, 0, 0]}
-                  >
-                    {statusChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[entry.status as keyof typeof COLORS]} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">Nenhum dado para exibir</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Gráfico Pizza - Valores por Status */}
-        <Card>
+        {/* Gráfico de Pizza - Distribuição por Status */}
+        <Card className="h-full">
           <CardHeader>
-            <CardTitle>Distribuição de Valores</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Distribuição por Status
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-96">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusChartData}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="valor"
-                  >
-                    {statusChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[entry.status as keyof typeof COLORS]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => [formatCurrency(Number(value)), 'Valor']} 
-                    labelFormatter={(label) => `Status: ${label}`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Legenda customizada */}
-            <div className="mt-4 flex flex-wrap justify-center gap-6">
-              {statusChartData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div 
-                    className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: COLORS[entry.status as keyof typeof COLORS] }}
-                  ></div>
-                  <span className="text-sm font-medium">
-                    {entry.status}: {formatCurrency(entry.valor)}
-                  </span>
+          <CardContent className="h-[400px]">
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">Carregando...</p>
+              </div>
+            ) : statusChartData.length > 0 ? (
+              <div className="h-full flex flex-col">
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height="70%">
+                    <PieChart>
+                      <Pie
+                        data={statusChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ count }) => count}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {statusChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => [value, 'Faturas']}
+                        contentStyle={{
+                          backgroundColor: '#1e293b',
+                          border: 'none',
+                          borderRadius: '8px',
+                          color: '#ffffff'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
+                
+                {/* Legenda */}
+                <div className="mt-4 space-y-2">
+                  {statusChartData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        ></div>
+                        <span className="text-sm font-medium">{item.status}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-bold">{item.count}</span> faturas
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">Nenhum dado para exibir</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -497,120 +654,91 @@ const Faturas = () => {
       {/* Tabela de Faturas */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Faturas ({faturasSummary.totalFaturas})
-            </CardTitle>
-            <Button onClick={handleExport} size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Faturas ({filteredData?.length || 0})
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>ID Fatura</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead 
-                    className="text-right cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => {
-                      if (sortBy === 'balance') {
-                        setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-                      } else {
-                        setSortBy('balance');
-                        setSortOrder('desc');
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Valor Fatura
-                      {sortBy === 'balance' && (
-                        sortOrder === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
-                      )}
-                      {sortBy !== 'balance' && <ArrowUpDown className="h-3 w-3 opacity-50" />}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => {
-                      if (sortBy === 'fechamento') {
-                        setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-                      } else {
-                        setSortBy('fechamento');
-                        setSortOrder('desc');
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-1">
-                      Fechamento
-                      {sortBy === 'fechamento' && (
-                        sortOrder === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
-                      )}
-                      {sortBy !== 'fechamento' && <ArrowUpDown className="h-3 w-3 opacity-50" />}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => {
-                      if (sortBy === 'vencimento') {
-                        setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-                      } else {
-                        setSortBy('vencimento');
-                        setSortOrder('desc');
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-1">
-                      Vencimento
-                      {sortBy === 'vencimento' && (
-                        sortOrder === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
-                      )}
-                      {sortBy !== 'vencimento' && <ArrowUpDown className="h-3 w-3 opacity-50" />}
-                    </div>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((fatura, index) => (
-                  <TableRow key={`${fatura.account_id}-${index}`}>
-                    <TableCell className="text-sm font-medium">
-                      {fatura.personal_name}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {fatura.personal_document}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {fatura.statement_id}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {fatura.kind}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(fatura.balance)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatDate(fatura.fechamento)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatDate(fatura.vencimento)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(fatura.status)}>
-                        {fatura.status}
-                      </Badge>
-                    </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-muted-foreground">Carregando faturas...</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-destructive">Erro ao carregar faturas</p>
+            </div>
+          ) : filteredData && filteredData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>CPF/CNPJ</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('valor_fatura')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Valor
+                        {renderSortIcon('valor_fatura')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('fechamento')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Fechamento
+                        {renderSortIcon('fechamento')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('vencimento')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Vencimento
+                        {renderSortIcon('vencimento')}
+                      </div>
+                    </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Produtos</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredData.map((fatura) => (
+                    <TableRow key={fatura.id}>
+                      <TableCell className="font-medium">{fatura.statement_id}</TableCell>
+                      <TableCell className="font-medium">{fatura.personal_name}</TableCell>
+                      <TableCell>{fatura.personal_document}</TableCell>
+                      <TableCell className="font-medium">
+                        {fatura.valor_fatura.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                      <TableCell>{formatDateForDisplay(fatura.fechamento)}</TableCell>
+                      <TableCell>{formatDateForDisplay(fatura.vencimento)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(fatura.status)} className="flex items-center gap-1 w-fit">
+                          {getStatusIcon(fatura.status)}
+                          {fatura.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {fatura.produtos}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-muted-foreground">Nenhuma fatura encontrada</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
