@@ -59,6 +59,11 @@ function AppContent() {
             <ExtratoRanking />
           </Layout>
         } />
+        <Route path="/extrato-ranking" element={
+          <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
+            <ExtratoRanking />
+          </Layout>
+        } />
         <Route path="/faturas" element={
           <Layout lastSync={lastSync} isRefreshing={isRefreshing}>
             <Faturas />
