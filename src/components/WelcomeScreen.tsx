@@ -48,7 +48,7 @@ const WelcomeScreen = () => {
           <div className="flex items-center justify-center gap-2 mb-4">
             <User className="w-8 h-8 text-blue-600" />
             <h1 className="text-4xl font-bold text-gray-900">
-              Alexsandro
+              Alexsandro Costa Nunes
             </h1>
           </div>
           <p className="text-xl text-gray-600 mb-2">

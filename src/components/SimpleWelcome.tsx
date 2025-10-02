@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const SimpleWelcome = () => {
   return (
@@ -35,7 +36,7 @@ const SimpleWelcome = () => {
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a 
-              href="/navigatorMock/dashboard" 
+              href="./dashboard" 
               style={{ 
                 backgroundColor: '#2563eb', 
                 color: 'white', 
@@ -48,7 +49,7 @@ const SimpleWelcome = () => {
               📈 Dashboard Executivo
             </a>
             <a 
-              href="/navigatorMock/producao/analytics" 
+              href="./producao/analytics" 
               style={{ 
                 backgroundColor: '#7c3aed', 
                 color: 'white', 
