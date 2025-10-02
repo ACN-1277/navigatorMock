@@ -1,8 +1,11 @@
 {
-  "name": "vite_react_shadcn_ts",
-  "private": true,
-  "version": "0.0.0",
+  "name": "data-corban-navigator",
+  "private": false,
+  "version": "1.0.0",
+  "description": "Sistema de navegação e análise de dados Corban - Dashboard completo com dados mockados",
+  "author": "Alexsandro",
   "type": "module",
+  "homepage": "https://acn-1277.github.io/data-corban-navigator/",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",

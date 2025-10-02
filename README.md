@@ -1,11 +1,20 @@
-# Delta Navigator 🚀
+# 🚀 Data Corban Navigator - Portfolio Project
 
-**Sistema avançado de análise de dados e dashboard executivo para gestão inteligente de propostas e conversões.**
+> **Sistema avançado de análise de dados e dashboard executivo para gestão inteligente de propostas e conversões financeiras.**
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat&logo=vite)](https://vitejs.dev/)
 [![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
+[![Shadcn/UI](https://img.shields.io/badge/Shadcn%2FUI-Latest-000000?style=flat&logo=shadcnui)](https://ui.shadcn.com/)
+
+## 🌟 **Deploy Links**
+- **🔗 Vercel**: [https://data-corban-navigator.vercel.app](https://data-corban-navigator.vercel.app)
+- **🔗 Netlify**: [https://data-corban-navigator.netlify.app](https://data-corban-navigator.netlify.app)  
+- **🔗 GitHub Pages**: [https://acn-1277.github.io/data-corban-navigator](https://acn-1277.github.io/data-corban-navigator)
+
+## 💼 **Sobre o Projeto**
+Sistema completo de dashboard executivo desenvolvido em React/TypeScript, com foco em análise de dados financeiros, KPIs e métricas de performance. **Projeto 100% funcional com dados mockados**, demonstrando habilidades em desenvolvimento frontend moderno.
 
 ## 📋 Índice
 
