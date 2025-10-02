@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: process.env.NODE_ENV === 'production' ? '/data-corban-navigator/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/navigatorMock/' : '/',
   server: {
     host: "::",
     port: 3000,
