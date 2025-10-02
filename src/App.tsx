@@ -15,7 +15,7 @@ import Faturas from './pages/Faturas';
 import NotFound from "./pages/NotFound";
 import ExtratoRanking from "./pages/ExtratoRanking";
 import NetworkTest from "./pages/NetworkTest";
-import WelcomeScreen from "./components/WelcomeScreen";
+import SimpleWelcome from "./components/SimpleWelcome";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +26,7 @@ function AppContent() {
     <BrowserRouter>
       <Routes>
         {/* Tela de boas-vindas sem layout */}
-        <Route path="/" element={<WelcomeScreen />} />
+        <Route path="/" element={<SimpleWelcome />} />
         
         {/* Páginas com layout principal */}
         <Route path="/dashboard" element={
